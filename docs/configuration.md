@@ -17,8 +17,9 @@ The app writes a default `settings.json` on first run. A reference copy with all
 | `imgbs_cookie`        | Session cookie for IMG.BS.                                               |
 | `vndb_api_token`      | Your VNDB API token.              |
 | `first_run_done`      | Internal flag: the startup guide has been shown.                         |
-| `blur_explicit`       | Blur explicit covers in the app.                                         |
-| `blur_rpc_explicit`   | Blur explicit covers in the Discord Rich Presence.                       |
+| `check_updates_on_startup` | Check GitHub for a new release at startup and notify you in the tray. Toggle it in **Check for Updates**. |
+| `pixel_explicit`      | Pixelate explicit covers in the app.                                     |
+| `replace_rpc_explicit`| Replace explicit covers with the VNDB logo in the Discord Rich Presence. |
 
 `settings.json` stores your personal API keys, token, and session cookie in plain text. It is Git-ignored, never commit or share it.
 
