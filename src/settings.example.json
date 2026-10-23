@@ -1,0 +1,14 @@
+{
+  "my_vndb_link": "",
+  "show_my_vndb_list": true,
+  "freeimage_api_key": "",
+  "image_host": "none",
+  "imgbb_api_key": "",
+  "postimages_api_key": "",
+  "imgbs_cookie": "",
+  "vndb_api_token": "",
+  "first_run_done": false,
+  "pixel_explicit": true,
+  "replace_rpc_explicit": true,
+  "check_updates_on_startup": true
+}
