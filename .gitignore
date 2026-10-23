@@ -26,6 +26,7 @@ vnlist.json.bak
 *.tmp
 Cache/
 Saved/
+Custom/
 ewe_crash.log
 Thumbs.db
 Desktop.ini
