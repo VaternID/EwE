@@ -21,6 +21,9 @@ sys.dont_write_bytecode = True
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 APP_ICON_PATH = os.path.join(BASE_DIR, 'EwE.ico')
 APP_ID = 'ewe.rpc'
+APP_VERSION = '1.0.0'
+GITHUB_REPO = 'VaternID/EwE'
+GITHUB_REPO_URL = f'https://github.com/{GITHUB_REPO}'
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
 _INSTANCE_MUTEX = ctypes.windll.kernel32.CreateMutexW(None, False, 'Local\\EWE_SingleInstance_Mutex')
 if ctypes.windll.kernel32.GetLastError() == 183:
@@ -168,10 +171,10 @@ DEFAULT_VNDB_STATE_TEMPLATE = '★ {vndb_rating}/10 · {vndb_year} · {vndb_leng
 DEFAULT_VNDB_DETAILS_ITEMS = ['{vndb_status}', 'By {vndb_developer}']
 CUSTOM_HELPER_DETAILS = '# Shown as the details line. {variables} are replaced live.'
 CUSTOM_HELPER_STATE = '# Shown as the state line. {variables} are replaced live.'
-CUSTOM_HELPER_CYCLE_ITEMS = '# One template per line - they rotate in order. {variables} are replaced live.'
+CUSTOM_HELPER_CYCLE_ITEMS = '# One template per line. They rotate in order. {variables} are replaced live.'
 CUSTOM_HELPER_PREFIX = '# Text added before the final text.'
 CUSTOM_HELPER_SUFFIX = '# Text added after the final text.'
-CUSTOM_HELPER_REMOVE = '# One substring per line - all removed from the text.'
+CUSTOM_HELPER_REMOVE = '# One substring per line. All of them are removed from the text.'
 CUSTOM_HELPER_REPLACE = '# One rule per line: old=new.'
 
 def format_playtime(seconds):
@@ -247,7 +250,7 @@ class RPCCore:
             print(f'Error saving config: {e}')
 
     def load_settings(self):
-        default_settings = {'my_vndb_link': '', 'show_my_vndb_list': True, 'freeimage_api_key': '', 'image_host': 'none', 'imgbb_api_key': '', 'postimages_api_key': '', 'imgbs_cookie': '', 'vndb_api_token': '', 'first_run_done': False, 'pixel_explicit': True, 'replace_rpc_explicit': True}
+        default_settings = {'my_vndb_link': '', 'show_my_vndb_list': True, 'freeimage_api_key': '', 'image_host': 'none', 'imgbb_api_key': '', 'postimages_api_key': '', 'imgbs_cookie': '', 'vndb_api_token': '', 'first_run_done': False, 'pixel_explicit': True, 'replace_rpc_explicit': True, 'check_updates_on_startup': True}
         if os.path.exists(self.settings_file):
             try:
                 with open(self.settings_file, 'r', encoding='utf-8') as f:
@@ -1438,7 +1441,7 @@ class RPCCore:
     def _upload_blurred_cover(self, local_path):
         host = (self.settings.get('image_host', 'none') or 'none').strip().lower()
         if host == 'none':
-            raise RuntimeError('no image host configured - set one in Settings > API Settings (Catbox needs no key)')
+            raise RuntimeError('no image host configured. Set one in Settings -> API Settings')
         url = upload_image_file(local_path, host, self.settings)
         if not url:
             raise RuntimeError(f"image host '{host}' returned no URL")
@@ -1790,6 +1793,44 @@ def upload_image_file(file_path, host, settings):
                 time.sleep(2 * attempt)
         raise RuntimeError('FreeImage.host upload failed after all attempts.')
     raise RuntimeError(f"Unknown image host: '{host}'")
+
+class UpdateCheckNoRelease(RuntimeError):
+    pass
+
+def fetch_latest_github_release(timeout=10):
+    headers = {'User-Agent': HEADERS['User-Agent'], 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'}
+    response = requests.get(f'{GITHUB_REPO_URL}/releases/latest', headers=headers, timeout=timeout)
+    if response.status_code == 404:
+        raise UpdateCheckNoRelease('This project has no releases yet.')
+    response.raise_for_status()
+    data = response.json()
+    if not isinstance(data, dict) or not data.get('tag_name'):
+        raise UpdateCheckNoRelease('This project has no releases yet.')
+    return data
+
+def _parse_version_text(text):
+    text = str(text or '').strip().lstrip('vV')
+    parts = []
+    for chunk in text.split('.'):
+        match = re.match(r'(\d+)', chunk)
+        parts.append(int(match.group(1)) if match else 0)
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts[:3])
+
+def _is_newer_version(release_text, current_text):
+    return _parse_version_text(release_text) > _parse_version_text(current_text)
+
+def _format_file_size(num):
+    try:
+        num = float(num)
+    except (TypeError, ValueError):
+        return ''
+    for unit in ('B', 'KB', 'MB', 'GB', 'TB'):
+        if num < 1024.0:
+            return f'{num:.0f} {unit}' if unit == 'B' else f'{num:.1f} {unit}'
+        num /= 1024.0
+    return f'{num:.1f} TB'
 
 class _ClickableLabel(QLabel):
     clicked = pyqtSignal()
@@ -2467,7 +2508,7 @@ class StartupGuideDialog(QDialog):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.addWidget(QLabel("<b>You're all set!</b>"))
-        tips = QLabel("Tips:\n•  EwE automatically hides in the system tray when minimized.\n•  Right-click any game on the list for more options.\n•  Settings -> VNDB Settings / API Settings to change the profile settings and image host.\n•  This guide can be reopened anytime from Settings -> Startup Guide.")
+        tips = QLabel("Tips:\n•  EwE automatically hides in the system tray when minimized.\n•  Right click any game on the list for more options.\n•  Settings -> VNDB Settings / API Settings to change the profile settings and image host.\n•  This guide can be reopened anytime from Settings -> Startup Guide.")
         tips.setWordWrap(True)
         layout.addWidget(tips)
         dev_note = QLabel('<b>EwE is a work in progress and may have lots of bugs and limitations. Feel free to give any feedback or suggestions to my Discord or GitHub, or open an issue if you find a bug. </b>')
@@ -2723,6 +2764,7 @@ class RPCMainWindow(QMainWindow):
         self.monitor_timer.start(1000)
         if not self.rpc_core.get_setting('first_run_done', False):
             QTimer.singleShot(400, self.open_startup_guide)
+        QTimer.singleShot(5000, self._startup_update_check)
 
     def create_widgets(self):
         self.game_list = QListWidget()
@@ -2750,6 +2792,7 @@ class RPCMainWindow(QMainWindow):
         settings_menu = menubar.addMenu('Settings')
         settings_menu.addAction('VNDB Settings', self.open_vndb_settings)
         settings_menu.addAction('API Settings', self.open_api_settings)
+        settings_menu.addAction('Check for Updates', self.open_update_checker)
         settings_menu.addAction('Startup Guide', self.open_startup_guide)
 
     def create_layout(self):
@@ -2831,7 +2874,7 @@ class RPCMainWindow(QMainWindow):
         for i, name in enumerate(['Titles', 'Aliases', 'Play time', 'Developer', 'Links', 'Release date']):
             lbl = QLabel(name)
             lbl.setStyleSheet('color: #8b8d98; font-size: 11px;')
-            val = QLabel('—')
+            val = QLabel('N/A')
             val.setWordWrap(True)
             val.setStyleSheet('font-size: 11px;')
             val.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
@@ -2919,7 +2962,7 @@ class RPCMainWindow(QMainWindow):
         self.detail_open_btn.setEnabled(False)
         self.detail_refresh_btn.setEnabled(False)
         for name, val in self.detail_rows.items():
-            val.setText('—')
+            val.setText('N/A')
             val.setOpenExternalLinks(False)
         self.detail_summary.setText('')
         self._desc_segments = []
@@ -2945,7 +2988,7 @@ class RPCMainWindow(QMainWindow):
         self._update_detail_playtime(game_key)
         if not vndb_url:
             self.detail_summary.setText('No description available.')
-            self.detail_gallery_status.setText('No VNDB link for this game - no gallery available.')
+            self.detail_gallery_status.setText('No VNDB link for this game, so no gallery is available.')
             self.detail_screenshots_status.setText('')
             return
         info = self.rpc_core.library_cache.get(vndb_url)
@@ -2975,7 +3018,7 @@ class RPCMainWindow(QMainWindow):
 
     def _update_spoiler_tooltip(self):
         hidden = any((seg.get('s') and i not in self._revealed_spoilers for i, seg in enumerate(self._desc_segments)))
-        self.detail_summary.setToolTip('Black boxes hide spoilers - click one to reveal it.' if hidden else '')
+        self.detail_summary.setToolTip('Black boxes hide spoilers. Click one to reveal it.' if hidden else '')
 
     def _build_description_html(self):
         parts = []
@@ -3011,7 +3054,7 @@ class RPCMainWindow(QMainWindow):
         info = info if isinstance(info, dict) else self.rpc_core.library_cache.get(vndb_url) or {}
 
         def set_row(name, text):
-            self.detail_rows[name].setText(text or '—')
+            self.detail_rows[name].setText(text or 'N/A')
         set_row('Titles', info.get('title') or self.get_game_display_name(game_key))
         set_row('Aliases', info.get('aliases'))
         set_row('Play time', info.get('playtime_vndb'))
@@ -3167,7 +3210,7 @@ class RPCMainWindow(QMainWindow):
             return
         if self._thumb_explicit(entry):
             label.setPixmap(self._blur_pixmap(pm, 118, 66))
-            label.setToolTip((entry.get('full') or '') + '\nExplicit - click to reveal')
+            label.setToolTip((entry.get('full') or '') + '\nExplicit. Click to reveal')
         else:
             label.setPixmap(pm)
             label.setToolTip(entry.get('full') or '')
@@ -3436,7 +3479,7 @@ class RPCMainWindow(QMainWindow):
             self.status_display.append(timestamp + '<span style="color:#3fb950;">Presence resumed.</span>')
         else:
             self.rpc_core.clear_rpc()
-            self.status_display.append(timestamp + '<span style="color:#e3b341;">Presence paused - Rich Presence cleared.</span>')
+            self.status_display.append(timestamp + '<span style="color:#e3b341;">Presence paused. Rich Presence cleared.</span>')
 
     def _update_tray_status(self, running):
         action = getattr(self, 'tray_status_action', None)
@@ -3796,7 +3839,7 @@ class RPCMainWindow(QMainWindow):
     def _set_window_title(self, activity_name):
         title = 'EwE'
         if activity_name:
-            title = f'EwE — {activity_name}'
+            title = f'EwE | {activity_name}'
         if self.windowTitle() != title:
             self.setWindowTitle(title)
 
@@ -3813,7 +3856,7 @@ class RPCMainWindow(QMainWindow):
         if game_key in self._blur_cover_warned:
             return
         self._blur_cover_warned.add(game_key)
-        self.update_status(f'{game_key}: explicit-cover blur skipped - {message}')
+        self.update_status(f'{game_key}: explicit cover blur skipped. {message}')
 
     def _on_monitor_tick(self):
         if self._scan_inflight:
@@ -3925,7 +3968,7 @@ class RPCMainWindow(QMainWindow):
             settings['extra_exe_names'] = extra
             self.rpc_core.config[game_key] = settings
             self.rpc_core._save_config()
-            self._post_ui_job(self.update_status, f"{game_key}: detected related process '{name}' - will track it automatically.")
+            self._post_ui_job(self.update_status, f"{game_key}: detected related process '{name}'. It will be tracked automatically.")
         except Exception:
             pass
 
@@ -4196,7 +4239,7 @@ class RPCMainWindow(QMainWindow):
         if selected_vn.get('id'):
             vn_label_text += f"  ({selected_vn['id']})"
         layout.addWidget(QLabel(f'VN: {vn_label_text}'))
-        pick_label = QLabel('You can either click the game window to auto-detect the executable, or browse for the .exe file manually. Alternatively, you can select a running executable from the list below.')
+        pick_label = QLabel('You can either click the game window to automatically detect the executable, or browse for the .exe file manually. Alternatively, you can select a running executable from the list below.')
         pick_label.setWordWrap(True)
         layout.addWidget(pick_label)
         pick_window_btn = QPushButton('Click the game window')
@@ -4237,7 +4280,7 @@ class RPCMainWindow(QMainWindow):
                     if not pid:
                         raise RuntimeError('The window under the cursor has no process.')
                     if pid == os.getpid():
-                        raise RuntimeError("That is this app's own window - click on the game window instead.")
+                        raise RuntimeError("That is this app's own window. Click on the game window instead.")
                     proc = psutil.Process(pid)
                     exe_name = proc.name()
                     exe_path = proc.exe()
@@ -4378,7 +4421,7 @@ class RPCMainWindow(QMainWindow):
                     if not pid:
                         raise RuntimeError('The window under the cursor has no process.')
                     if pid == os.getpid():
-                        raise RuntimeError("That is this app's own window - click on the game window instead.")
+                        raise RuntimeError("That is this app's own window. Click on the game window instead.")
                     proc = psutil.Process(pid)
                     exe_path = proc.exe()
                     if not exe_path:
@@ -4630,7 +4673,7 @@ class RPCMainWindow(QMainWindow):
             pending_image['path'] = source_path
             pending_image['kind'] = source_kind
             update_preview()
-            self.update_status(f'{exe_name}: {source_kind} staged - will save when you click OK.')
+            self.update_status(f'{exe_name}: {source_kind} staged. It will save when you click OK.')
 
         def save_icon_frame(icon_img, exe_path):
             image_dir = self.get_image_dir(exe_path)
@@ -4864,7 +4907,7 @@ class RPCMainWindow(QMainWindow):
                     if not covers:
                         pick_status.setText('No covers found on VNDB for this entry.')
                         return
-                    pick_status.setText(f'{len(covers)} covers found on VNDB - click one to select it, then press "Use cover".')
+                    pick_status.setText(f'{len(covers)} covers found on VNDB. Click one to select it, then press "Use cover".')
                     for entry in covers:
                         full = (entry.get('full') or '').replace('/cv.t/', '/cv/')
                         if not full:
@@ -4947,21 +4990,21 @@ class RPCMainWindow(QMainWindow):
                     cover_url_input.setText(default_source_value)
                     large_image_input.setText(default_source_value)
                     update_preview()
-                    self.update_status(f'{exe_name}: keeping existing VNDB cover (no re-fetch).')
+                    self.update_status(f'{exe_name}: keeping existing VNDB cover (no refetch).')
                 else:
                     mark_pending_image(vndb_url, 'vndb cover')
                     fetch_vndb_cover_url(stage=True)
-                    self.update_status(f'{exe_name}: VNDB cover staged - will save when you click OK.')
+                    self.update_status(f'{exe_name}: VNDB cover staged. It will save when you click OK.')
             elif manual_image_check.isChecked():
                 src = manual_source_value
                 if manual_image_staged and src:
                     mark_pending_image(src, 'image')
                     update_preview()
-                    self.update_status(f'{exe_name}: manual image staged - will save when you click OK.')
+                    self.update_status(f'{exe_name}: manual image staged. It will save when you click OK.')
                 elif src:
                     pending_image['path'] = ''
                     pending_image['kind'] = ''
-                    self.update_status(f'{exe_name}: keeping existing image (no re-upload). Use Refresh Image to force.')
+                    self.update_status(f'{exe_name}: keeping existing image (no reupload). Use Refresh Image to force.')
                 else:
                     pending_image['path'] = ''
                     pending_image['kind'] = ''
@@ -5008,7 +5051,7 @@ class RPCMainWindow(QMainWindow):
                     show = known_explicit if known_explicit is not None else self.rpc_core.is_image_explicit(cover)
             explicit_rpc_note.setVisible(show)
             if show:
-                explicit_rpc_note.setText('This cover is marked <b>explicit</b> on VNDB - your Discord Rich Presence will use the <b>VNDB logo</b> instead of this cover, because "Blur explicit covers in RPC" is enabled.')
+                explicit_rpc_note.setText('This cover is marked <b>explicit</b> on VNDB. Your Discord Rich Presence will use the <b>VNDB logo</b> instead of this cover, because "Blur explicit covers in RPC" is enabled.')
             update_image_mode_visibility()
 
         def on_default_image_check(checked):
@@ -5298,7 +5341,7 @@ class RPCMainWindow(QMainWindow):
                     btn.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
                     btn.setMaximumWidth(100)
                     btn.setStyleSheet('font-size: 11px; padding: 0px 4px; color: #7ec67e;')
-                    btn.setToolTip(f'Custom Python Processing\n{path}\n\nClick: insert variable\nRight-click: script options')
+                    btn.setToolTip(f'Custom Python Processing\n{path}\n\nClick: insert variable\nRight click: script options')
                     btn.clicked.connect(lambda _checked=False, n=name: insert_variable(n))
                     btn.hovered.connect(lambda b, n=name: var_value_popup.show_for(b, n, var_values.get(n, '')))
                     btn.unhovered.connect(var_value_popup.hide_for)
@@ -7004,9 +7047,159 @@ class RPCMainWindow(QMainWindow):
         self.refresh_game_list()
         timestamp = f"""<span style="color:#5c6370;">[{time.strftime('%H:%M:%S')}]</span> """
         if guide.completed:
-            self.status_display.append(timestamp + '<span style="color:#3fb950; font-weight:bold;">Startup guide complete. Welcome to EwE!</span> ' + '<span style="color:#5c6370;">Add more games with the "Add Game" button. Right-click a game to edit it.</span>')
+            self.status_display.append(timestamp + '<span style="color:#3fb950; font-weight:bold;">Startup guide complete. Welcome to EwE!</span> ' + '<span style="color:#5c6370;">Add more games with the "Add Game" button. Right click a game to edit it.</span>')
         else:
             self.status_display.append(timestamp + '<span style="color:#e3b341;">Setup saved. Reopen the guide anytime from Settings &gt; Startup Guide.</span>')
+
+    def open_update_checker(self):
+        dialog = QDialog(self)
+        self.active_dialogs.append(dialog)
+        dialog.finished.connect(lambda _r, d=dialog: self.active_dialogs.remove(d) if d in self.active_dialogs else None)
+        dialog.setWindowTitle('Check for Updates')
+        dialog.setFixedSize(540, 560)
+        dialog.setWindowIcon(QIcon(APP_ICON_PATH))
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(8)
+        header = QLabel(f'<b>EwE</b> | current version: <b>{APP_VERSION}</b>')
+        header.setWordWrap(True)
+        layout.addWidget(header)
+        status_label = QLabel('Checking for updates...')
+        status_label.setWordWrap(True)
+        status_label.setStyleSheet('color: #8b949e; font-size: 13px;')
+        layout.addWidget(status_label)
+        notes = QTextEdit()
+        notes.setReadOnly(True)
+        notes.setPlaceholderText('Release notes will appear here.')
+        notes.setOpenExternalLinks(True)
+        layout.addWidget(notes, 1)
+        assets_box = QWidget()
+        assets_layout = QVBoxLayout(assets_box)
+        assets_layout.setContentsMargins(0, 0, 0, 0)
+        assets_layout.setSpacing(4)
+        layout.addWidget(assets_box)
+        assets_layout.addStretch(1)
+        startup_check_box = QCheckBox('Check for updates on startup')
+        startup_check_box.setChecked(self.rpc_core.get_setting('check_updates_on_startup', True))
+        startup_check_box.toggled.connect(lambda checked: self.rpc_core.update_settings('check_updates_on_startup', checked))
+        layout.addWidget(startup_check_box)
+        btn_row = QHBoxLayout()
+        release_btn = QPushButton('Open release page')
+        close_btn = QPushButton('Close')
+        btn_row.addStretch(1)
+        btn_row.addWidget(release_btn)
+        btn_row.addWidget(close_btn)
+        layout.addLayout(btn_row)
+        state = {'release_url': f'{GITHUB_REPO_URL}/releases'}
+        release_btn.clicked.connect(lambda: webbrowser.open(state['release_url']))
+        close_btn.clicked.connect(dialog.accept)
+
+        def fill_with_release(release):
+            try:
+                if sip is not None and sip.isdeleted(dialog):
+                    return
+            except Exception:
+                pass
+            if release.get('no_release'):
+                status_label.setText('No releases have been published yet.')
+                status_label.setStyleSheet('color: #e3b341; font-size: 13px;')
+                notes.setPlainText('Check back later, or open the release page once one is published.')
+                return
+            tag = str(release.get('tag_name') or '').strip().lstrip('vV')
+            state['release_url'] = release.get('html_url') or f'{GITHUB_REPO_URL}/releases'
+            body = release.get('body') or 'No release notes.'
+            if _is_newer_version(tag, APP_VERSION):
+                status_label.setText(f'New version available: {tag}  (you are running {APP_VERSION})')
+                status_label.setStyleSheet('color: #3fb950; font-weight: bold; font-size: 13px;')
+                notes.setPlainText(f"Release notes for {release.get('name') or tag}:\n\n{body}\n\nTo update: download the file below, close EwE, then run the new .exe from the same folder. Your games and settings are stored beside the program and are kept.")
+            elif _parse_version_text(tag) == _parse_version_text(APP_VERSION):
+                status_label.setText(f'You are running the latest version ({APP_VERSION}).')
+                status_label.setStyleSheet('color: #3fb950; font-size: 13px;')
+                notes.setPlainText(f"Release notes for {release.get('name') or tag}:\n\n{body}")
+            else:
+                status_label.setText(f'Your version ({APP_VERSION}) is newer than the latest release ({tag}).')
+                status_label.setStyleSheet('color: #e3b341; font-size: 13px;')
+                notes.setPlainText(body)
+            while assets_layout.count() > 1:
+                item = assets_layout.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
+            assets = release.get('assets') or []
+            if not assets:
+                hint = QLabel('This release has no downloadable files. Use "Open release page" to see it on GitHub.')
+                hint.setWordWrap(True)
+                hint.setStyleSheet('color: #8b949e;')
+                assets_layout.insertWidget(assets_layout.count() - 1, hint)
+            for asset in assets:
+                name = str(asset.get('name') or 'download')
+                size_text = _format_file_size(asset.get('size'))
+                url = asset.get('browser_download_url') or state['release_url']
+                row = QWidget()
+                row_layout = QHBoxLayout(row)
+                row_layout.setContentsMargins(0, 0, 0, 0)
+                row_layout.setSpacing(6)
+                label = QLabel(f'{name}  ({size_text})' if size_text else name)
+                label.setWordWrap(True)
+                download_btn = QPushButton('Download')
+                copy_btn = QPushButton('Copy link')
+                download_btn.clicked.connect(lambda _checked=False, u=url: webbrowser.open(u))
+                copy_btn.clicked.connect(lambda _checked=False, u=url: QApplication.clipboard().setText(u))
+                row_layout.addWidget(label, 1)
+                row_layout.addWidget(download_btn)
+                row_layout.addWidget(copy_btn)
+                assets_layout.insertWidget(assets_layout.count() - 1, row)
+
+        def work():
+            try:
+                return fetch_latest_github_release()
+            except UpdateCheckNoRelease:
+                return {'no_release': True}
+
+        def on_success(release):
+            fill_with_release(release)
+
+        def on_error(message):
+            try:
+                if sip is not None and sip.isdeleted(dialog):
+                    return
+            except Exception:
+                pass
+            text = str(message).strip()
+            short = text.splitlines()[0][:300] if text else 'unknown error'
+            status_label.setText(f'Update check failed: {short}')
+            status_label.setStyleSheet('color: #f85149; font-size: 13px;')
+        run_async_task(work, on_success, on_error)
+        dialog.exec()
+
+    def _startup_update_check(self):
+        if getattr(self, '_startup_update_done', False):
+            return
+        self._startup_update_done = True
+        if not self.rpc_core.get_setting('check_updates_on_startup', True):
+            return
+
+        def work():
+            try:
+                return fetch_latest_github_release()
+            except UpdateCheckNoRelease:
+                return None
+
+        def on_success(release):
+            if not release:
+                return
+            tag = str(release.get('tag_name') or '').strip().lstrip('vV')
+            if not tag or not _is_newer_version(tag, APP_VERSION):
+                return
+            summary = f'EwE {tag} is available (you are running {APP_VERSION}).'
+            timestamp = f"""<span style="color:#5c6370;">[{time.strftime('%H:%M:%S')}]</span> """
+            self.status_display.append(timestamp + f'<span style="color:#3fb950;">{html.escape(summary)}</span> ' + '<span style="color:#8b949e;">Open Settings &gt; Check for Updates to download it.</span>')
+            tray = getattr(self, 'tray_icon', None)
+            if tray is not None:
+                tray.showMessage('EwE update available', summary, QIcon(APP_ICON_PATH), 5000)
+
+        def on_error(_message):
+            pass
+        run_async_task(work, on_success, on_error)
 DARK_STYLESHEET = '\nQWidget {\n    background-color: #1e1f22;\n    color: #dbdee1;\n    font-family: \'Segoe UI\';\n    font-size: 13px;\n}\n\nQLabel {\n    background: transparent;\n    color: #dbdee1;\n}\n\nQMainWindow, QDialog, QMessageBox, QMenu, QToolTip {\n    background-color: #1e1f22;\n}\n\n/* --- inputs --- */\nQLineEdit, QTextEdit {\n    background-color: #2b2d31;\n    border: 1px solid #3f4147;\n    border-radius: 4px;\n    padding: 4px;\n    color: #dbdee1;\n    selection-background-color: #5865f2;\n    selection-color: #ffffff;\n}\n\nQLineEdit:focus, QTextEdit:focus {\n    border: 1px solid #5865f2;\n}\n\nQLineEdit:disabled, QTextEdit:disabled {\n    color: #80848e;\n    background-color: #232428;\n}\n\n/* --- lists --- */\nQListWidget {\n    background-color: #2b2d31;\n    border: 1px solid #3f4147;\n    border-radius: 4px;\n    padding: 2px;\n    outline: 0;\n}\n\nQListWidget::item {\n    color: #dbdee1;\n    padding: 4px;\n    border-radius: 4px;\n}\n\nQListWidget::item:selected {\n    background-color: #5865f2;\n    color: #ffffff;\n}\n\n/* --- buttons --- */\nQPushButton {\n    background-color: #313338;\n    border: 1px solid #3f4147;\n    border-radius: 4px;\n    padding: 6px 18px;\n    color: #dbdee1;\n}\n\nQPushButton:hover {\n    background-color: #3a3c42;\n}\n\nQPushButton:pressed {\n    background-color: #2b2d31;\n}\n\nQPushButton:disabled {\n    color: #80848e;\n    background-color: #26272b;\n    border-color: #2b2d31;\n}\n\n/* --- menu bar / menus --- */\nQMenuBar {\n    background-color: #1e1f22;\n    color: #dbdee1;\n}\n\nQMenuBar::item {\n    background: transparent;\n    padding: 5px 10px;\n}\n\nQMenuBar::item:selected {\n    background-color: #313338;\n    border-radius: 4px;\n}\n\nQMenu {\n    background-color: #2b2d31;\n    border: 1px solid #3f4147;\n}\n\nQMenu::item {\n    padding: 6px 24px;\n    border-radius: 4px;\n}\n\nQMenu::item:selected {\n    background-color: #5865f2;\n    color: #ffffff;\n}\n\nQMenu::item:disabled {\n    color: #80848e;\n}\n\nQMenu::separator {\n    height: 1px;\n    background-color: #3f4147;\n    margin: 4px 8px;\n}\n\n/* --- checkboxes & radio buttons --- */\nQCheckBox, QRadioButton {\n    background: transparent;\n    color: #dbdee1;\n    spacing: 8px;\n    padding: 2px;\n}\n\nQCheckBox:disabled, QRadioButton:disabled {\n    color: #80848e;\n}\n\nQCheckBox::indicator, QRadioButton::indicator {\n    width: 16px;\n    height: 16px;\n    background-color: #2b2d31;\n    border: 1px solid #80848e;\n}\n\nQCheckBox::indicator {\n    border-radius: 3px;\n}\n\nQRadioButton::indicator {\n    border-radius: 8px;\n}\n\nQCheckBox::indicator:hover, QRadioButton::indicator:hover {\n    border-color: #5865f2;\n}\n\nQCheckBox::indicator:checked {\n    background-color: #5865f2;\n    border-color: #7984f5;\n    image: url("__CHECK_ICON__");\n}\n\nQRadioButton::indicator:checked {\n    background-color: #5865f2;\n    border-color: #5865f2;\n}\n\n/* --- scroll areas & scrollbars --- */\nQScrollArea {\n    border: none;\n    background: transparent;\n}\n\nQScrollArea > QWidget > QWidget {\n    background: transparent;\n}\n\nQScrollBar:vertical {\n    background: #1e1f22;\n    width: 12px;\n    margin: 0;\n}\n\nQScrollBar::handle:vertical {\n    background: #A8A1C9;\n    border-radius: 6px;\n    min-height: 30px;\n}\n\nQScrollBar::handle:vertical:hover, QScrollBar::handle:vertical:pressed {\n    background: #A8A1C9;\n}\n\nQScrollBar:horizontal {\n    background: #1e1f22;\n    height: 12px;\n    margin: 0;\n}\n\nQScrollBar::handle:horizontal {\n    background: #A8A1C9;\n    border-radius: 6px;\n    min-width: 30px;\n}\n\nQScrollBar::handle:horizontal:hover, QScrollBar::handle:horizontal:pressed {\n    background: #A8A1C9;\n}\n\nQScrollBar::add-line, QScrollBar::sub-line {\n    width: 0;\n    height: 0;\n}\n\nQScrollBar::add-page, QScrollBar::sub-page {\n    background: transparent;\n}\n\n/* --- tooltips & progress --- */\nQToolTip {\n    background-color: #2b2d31;\n    color: #dbdee1;\n    border: 1px solid #3f4147;\n    padding: 4px;\n}\n\nQMessageBox {\n    background-color: #2b2d31;\n}\n\nQProgressDialog {\n    background-color: #2b2d31;\n}\n\nQProgressBar {\n    background-color: #1e1f22;\n    border: 1px solid #3f4147;\n    border-radius: 4px;\n    text-align: center;\n    color: #dbdee1;\n}\n\nQProgressBar::chunk {\n    background-color: #5865f2;\n    border-radius: 3px;\n}\n'
 
 _dark_title_bar_handles = set()
