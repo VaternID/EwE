@@ -7,7 +7,7 @@ This program shows visual novels you currently play in your Discord Activity.
 
 ## Install
 
-Download from [Releases](../../releases) (WIP) or from source directly. 
+Download from [Releases](releases) (WIP) or from source directly. 
 
 ## Get started
 
@@ -31,6 +31,8 @@ EwE stores its files beside the program:
 - `vnlist.json` = your games, playtime, and cached data.
 - `Cache\` = downloaded images.
 - `Saved\` = covers and icons saved from the program.
+- `Custom\` = your custom Python scripts.
+- `ewe_crash.log` = crash and error log.
 
 More details: [Configuration Reference](docs/configuration.md) and
 [Technical Reference](docs/technical-reference.md).
