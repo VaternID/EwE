@@ -9,6 +9,7 @@ import os
 import queue
 import math
 import re
+import shutil
 import sys
 import html
 import threading
@@ -18,8 +19,13 @@ import subprocess
 import webbrowser
 from concurrent.futures import ThreadPoolExecutor
 sys.dont_write_bytecode = True
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-APP_ICON_PATH = os.path.join(BASE_DIR, 'EwE.ico')
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(os.path.abspath(sys.executable))
+    _RES_DIR = getattr(sys, '_MEIPASS', BASE_DIR)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    _RES_DIR = BASE_DIR
+APP_ICON_PATH = os.path.join(_RES_DIR, 'EwE.ico')
 APP_ID = 'ewe.rpc'
 APP_VERSION = '1.0.0'
 GITHUB_REPO = 'VaternID/EwE'
@@ -927,9 +933,23 @@ class RPCCore:
                 sig.append((os.path.basename(p), 0))
         return tuple(sig)
 
+    @staticmethod
+    def _custom_python():
+        if not getattr(sys, 'frozen', False):
+            return sys.executable
+        for name in ('python', 'pythonw'):
+            found = shutil.which(name)
+            if found:
+                return found
+        return None
+
     def _run_custom_script(self, path):
+        py = self._custom_python()
+        if py is None:
+            print('[EwE custom py] No Python found on PATH; custom scripts need Python installed.')
+            return ''
         try:
-            proc = subprocess.run([sys.executable, path], capture_output=True, text=True, timeout=10, cwd=os.path.dirname(path) or None)
+            proc = subprocess.run([py, path], capture_output=True, text=True, timeout=10, cwd=os.path.dirname(path) or None)
             out = (proc.stdout or '').strip()
             if not out and proc.stderr:
                 print(f'[EwE custom py] {os.path.basename(path)}: {(proc.stderr or "").strip()[:300]}')
@@ -7070,7 +7090,6 @@ class RPCMainWindow(QMainWindow):
         notes = QTextEdit()
         notes.setReadOnly(True)
         notes.setPlaceholderText('Release notes will appear here.')
-        notes.setOpenExternalLinks(True)
         layout.addWidget(notes, 1)
         assets_box = QWidget()
         assets_layout = QVBoxLayout(assets_box)
@@ -7240,9 +7259,10 @@ class DarkTitleBarFilter(QObject):
         return super().eventFilter(obj, event)
 
 def ensure_checkmark_png():
-    path = os.path.join(BASE_DIR, 'Elements', 'checkbox_check.png')
+    path = os.path.join(_RES_DIR, 'Elements', 'checkbox_check.png')
     if os.path.exists(path):
         return path
+    path = os.path.join(BASE_DIR, 'Elements', 'checkbox_check.png')
     pm = QPixmap(16, 16)
     pm.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pm)
