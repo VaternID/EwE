@@ -1,0 +1,7 @@
+PyQt6
+pypresence
+requests
+psutil
+pywin32
+Pillow
+matplotlib
