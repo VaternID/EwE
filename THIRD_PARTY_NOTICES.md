@@ -8,7 +8,7 @@ EwE depends on the following third-party Python packages. Each remains under its
 | [pywin32](https://github.com/mhammond/pywin32) | [Python Software Foundation License](https://github.com/mhammond/pywin32/blob/master/License.txt) (MIT-like) | Windows API bindings (`win32gui`, `win32process`, `win32con`). |
 | [pypresence](https://github.com/Faust/PyPresence) | MIT | Discord Rich Presence (IPC) client. |
 | [requests](https://github.com/psf/requests) | Apache-2.0 | HTTP client for the VNDB API and image hosts. |
-| [psutil](https://github.com/gitpython-wrapper/psutil) | BSD-2-Clause | Process detection and monitoring. |
+| [psutil](https://github.com/giampaolo/psutil) | BSD-2-Clause | Process detection and monitoring. |
 | [Pillow](https://python-pillow.org/) | [Pillow License](https://github.com/python-pillow/Pillow/blob/main/LICENSE) (MIT/HPND-based) | Image handling (covers, EXE icon extraction). |
 | [matplotlib](https://matplotlib.org/) | [PSF-based matplotlib license](https://matplotlib.org/stable/users/license.html) (GPL-compatible) | Playtime graph dialog only. |
 
