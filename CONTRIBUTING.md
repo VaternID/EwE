@@ -16,19 +16,19 @@ This document explains how the project is organized and how to propose changes.
 
 ## Runtime data
 
-`src/settings.json`, `src/vnlist.json`, `src/Cache/`, `src/Saved/`, and `src/ewe_crash.log` are created at runtime and are Git-ignored. Do not commit them (they may contain personal data and API keys).
+`src/settings.json`, `src/vnlist.json`, `src/Cache/`, `src/Saved/`, `src/Custom/`, and `src/ewe_crash.log` are created at runtime and are Git-ignored. Do not commit them (they may contain personal data and API keys).
 
 ## Pull requests
 
 1. Create a branch for your change.
 2. Commit with clear, descriptive messages.
-3. Open a pull request against `main` and fill in the pull request template.
+3. Open a pull request against `main`.
 4. For bugs: link the issue and include reproduction steps.
 5. For features: explain the user-visible behavior and, where relevant, screenshots.
 
 ## Reporting issues
 
-Use the [issue tracker](https://github.com/VaternID/EwE/issues) with the provided templates. Include:
+Use the [issue tracker](https://github.com/VaternID/EwE/issues). Include:
 
 - Your Windows version and Python version.
 - The output of `src/ewe_crash.log` for crashes.
