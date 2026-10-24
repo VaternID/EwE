@@ -1,5 +1,5 @@
 
-# EwE (WIP)
+# EwE
 
 This program shows visual novels you currently play in your Discord Activity.
 
@@ -7,17 +7,15 @@ This program shows visual novels you currently play in your Discord Activity.
 
 ## Install
 
-Download from [Releases](releases) (WIP) or from source directly. 
+Download the latest [Release](https://github.com/VaternID/EwE/releases), extract the zip, and run `EwE.exe`. Or build from source.
 
 ## Get started
 
 - Open EwE and click **Add Game**.
-- Search VNDB or choose **Unknown VN**.
 - Select the game by its running window, `.exe`, or running process.
-- Set its name, cover, and presence text.
-- Keep Discord desktop running and enable activity sharing in **Activity
-  Privacy**.
-- Launch the game. EwE then will shows the visual novel you played on your Discord Activity.
+- Set its name, cover, and presence text, or EwE do it automatically.
+- Keep EwE and Discord desktop running.
+- Simply launch the game.
 
 ## How it works
 EwE matches the executable by process name and path and remember related game
@@ -69,10 +67,11 @@ More details: [Configuration Reference](docs/configuration.md) and
 
 
 ## Future Plan
-- Being able to detect VNs in emulator
+- Detect VNs processes inside emulator
 - More Customization 
 - Improving the Library
-
+- Improving Perfomance
+- Android (Maybe)
 
 ## License
 
