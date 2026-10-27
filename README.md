@@ -6,7 +6,7 @@ This program shows visual novels you currently play in your Discord Activity.
 
 ## Install
 
-Download the latest [Release](https://github.com/VaternID/EwE/releases), extract the zip, and run `EwE.exe`. Or run the program from source.
+Download the latest [Release](https://github.com/VaternID/EwE/releases), extract the zip, and run `EwE.exe`. Or just run the program from source.
 
 ## Get started
 
@@ -23,9 +23,9 @@ processes. If multiple games run, EwE shows one based on their start times.
 
 ## Feature
 - Minimal Setup
-- Highly Customizeable Rich Presence
+- Highly Customizeable
 - Automatically fetching from VNDB
-- Simple Library
+- Built-in Library
 - Censor explicit image by default settings (can be turned off).
 - Playtime tracking
 
@@ -80,7 +80,7 @@ More details: [Configuration Reference](docs/configuration.md) and
 - More Customization 
 - Improving the Library
 - Improving Perfomance
-- More OS Support like Android (Maybe)
+- More OS Support like Android (Maybe) -> check my friend repo https://github.com/Atho64/VN-Asyik
 
 ## License
 
