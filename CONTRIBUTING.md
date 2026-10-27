@@ -10,8 +10,8 @@ This document explains how the project is organized and how to propose changes.
 
 ## Code style and structure
 
-- The entire application lives in a single file, `src/presence.py`. This is on purpose, keep it that way. 
-- The app currently is a Windows-only PyQt6 application. The goal of this program is that every aspect of it is customizable including all UI elements while keeping it user friendly. 
+- The entire program is just in a **single file** `src/presence.py`. This is **on purpose**, keep it that way. 
+- The app currently is a Windows-only PyQt6 application. The goal of this program is that every aspect of it is customizable including Rich Presence details, state, and all UI elements while keeping it user friendly. 
 - The app resolves all runtime files relative to its own location (`src/`). Do not hard-code absolute paths.
 
 ## Runtime data
